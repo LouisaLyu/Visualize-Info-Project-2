@@ -1,0 +1,112 @@
+<!DOCTYPE html>
+
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Weather Decisions Dashboard</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link
+    href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap"
+    rel="stylesheet"
+  />
+  <link rel="stylesheet" href="style.css" />
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+</head>
+<body>
+  <main class="page">
+    <section class="hero">
+      <div>
+        <div class="eyebrow">Dynamic Weather Dashboard</div>
+        <h1>Weather Decisions Dashboard</h1>
+        <p class="hero-text">
+          Compare changing weather conditions across cities, time ranges, and
+          metrics to support daily planning for students and commuters.
+        </p>
+      </div>
+
+      <div class="updated-card">
+        <span class="updated-label">Last updated</span>
+        <span id="lastUpdated">Waiting for data...</span>
+      </div>
+    </section>
+
+    <section class="controls card">
+      <div class="control-group">
+        <label for="primaryCity">Primary city</label>
+        <select id="primaryCity"></select>
+      </div>
+
+      <div class="control-group">
+        <label for="compareCity">Compare with</label>
+        <select id="compareCity"></select>
+      </div>
+
+      <div class="control-group button-group">
+        <button id="refreshBtn" class="refresh-btn">Refresh</button>
+      </div>
+
+      <div class="full-row">
+        <div class="section-label">Time range</div>
+        <div id="rangeButtons" class="pill-row"></div>
+      </div>
+
+      <div class="full-row">
+        <div class="section-label">Metric</div>
+        <div id="metricButtons" class="pill-row"></div>
+      </div>
+    </section>
+
+    <section id="errorBox" class="error-box hidden"></section>
+
+    <section id="summaryCards" class="summary-grid"></section>
+
+    <section class="content-grid">
+      <div class="card chart-card">
+        <div class="chart-header">
+          <div>
+            <h2 id="chartTitle">Forecast</h2>
+            <p id="chartSubtitle">Loading...</p>
+          </div>
+          <div id="compareLabel" class="compare-label"></div>
+        </div>
+
+        <div class="chart-wrap">
+          <canvas id="weatherChart"></canvas>
+        </div>
+      </div>
+
+      <aside class="side-column">
+        <div class="card notes-card">
+          <h3>Dashboard notes</h3>
+          <p>
+            This dashboard demonstrates an end-to-end dynamic pipeline:
+            weather data is fetched from an API, transformed into chart-ready
+            values, and displayed through interactive controls.
+          </p>
+          <p>
+            Users can switch cities, time ranges, and weather metrics to compare
+            forecast patterns for everyday decisions like commuting, clothing,
+            or study-location planning.
+          </p>
+        </div>
+
+        <div class="card table-card">
+          <div class="table-header">
+            <h3>Forecast values</h3>
+            <p>Quick reference for the current selection.</p>
+          </div>
+          <div id="forecastTable" class="forecast-table"></div>
+        </div>
+      </aside>
+    </section>
+
+    <section id="loadingBox" class="loading-box hidden">
+      Loading the latest forecast data...
+    </section>
+  </main>
+
+  <script src="main.js"></script>
+</body>
+</html>
