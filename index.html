@@ -1,14 +1,13 @@
 <!DOCTYPE html>
-
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Weather Decisions Dashboard</title>
+  <title>Campus Commute Weather Dashboard</title>
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link
-    href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap"
+    href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap"
     rel="stylesheet"
   />
   <link rel="stylesheet" href="style.css" />
@@ -17,12 +16,13 @@
 <body>
   <main class="page">
     <section class="hero">
-      <div>
-        <div class="eyebrow">Dynamic Weather Dashboard</div>
-        <h1>Weather Decisions Dashboard</h1>
+      <div class="hero-copy">
+        <div class="eyebrow">Student commute planning</div>
+        <h1>Campus Commute Weather Dashboard</h1>
         <p class="hero-text">
-          Compare changing weather conditions across cities, time ranges, and
-          metrics to support daily planning for students and commuters.
+          A decision-first weather dashboard for students comparing home, campus,
+          and nearby city conditions. Use it to decide what to bring, how to commute,
+          and whether to stay on campus or move elsewhere.
         </p>
       </div>
 
@@ -32,9 +32,29 @@
       </div>
     </section>
 
+    <section class="decision-strip">
+      <article class="decision-card">
+        <span class="decision-label">Rain gear</span>
+        <strong id="rainDecision">Loading...</strong>
+        <p id="rainReason">Checking precipitation differences.</p>
+      </article>
+
+      <article class="decision-card">
+        <span class="decision-label">Extra layer</span>
+        <strong id="layerDecision">Loading...</strong>
+        <p id="layerReason">Checking temperature and wind.</p>
+      </article>
+
+      <article class="decision-card">
+        <span class="decision-label">Harder location right now</span>
+        <strong id="harderLocation">Loading...</strong>
+        <p id="harderReason">Comparing conditions across locations.</p>
+      </article>
+    </section>
+
     <section class="controls card">
       <div class="control-group">
-        <label for="primaryCity">Primary city</label>
+        <label for="primaryCity">Starting location</label>
         <select id="primaryCity"></select>
       </div>
 
@@ -44,7 +64,7 @@
       </div>
 
       <div class="control-group button-group">
-        <button id="refreshBtn" class="refresh-btn">Refresh</button>
+        <button id="refreshBtn" class="refresh-btn">Update forecast</button>
       </div>
 
       <div class="full-row">
@@ -78,24 +98,19 @@
       </div>
 
       <aside class="side-column">
-        <div class="card notes-card">
-          <h3>Dashboard notes</h3>
-          <p>
-            This dashboard demonstrates an end-to-end dynamic pipeline:
-            weather data is fetched from an API, transformed into chart-ready
-            values, and displayed through interactive controls.
-          </p>
-          <p>
-            Users can switch cities, time ranges, and weather metrics to compare
-            forecast patterns for everyday decisions like commuting, clothing,
-            or study-location planning.
-          </p>
+        <div class="card compact-card">
+          <h3>What this dashboard helps with</h3>
+          <ul class="compact-list">
+            <li>Compare home and campus before leaving</li>
+            <li>See whether rain or wind changes your commute comfort</li>
+            <li>Check whether conditions later in the day look better or worse</li>
+          </ul>
         </div>
 
         <div class="card table-card">
           <div class="table-header">
-            <h3>Forecast values</h3>
-            <p>Quick reference for the current selection.</p>
+            <h3>Quick forecast values</h3>
+            <p>Fast scan for the current location and metric.</p>
           </div>
           <div id="forecastTable" class="forecast-table"></div>
         </div>
@@ -103,7 +118,7 @@
     </section>
 
     <section id="loadingBox" class="loading-box hidden">
-      Loading the latest forecast data...
+      Loading the latest forecast for your commute planning...
     </section>
   </main>
 

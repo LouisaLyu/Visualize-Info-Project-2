@@ -1,7 +1,7 @@
 const CITIES = {
-  Oakville: { latitude: 43.4675, longitude: -79.6877 },
-  Toronto: { latitude: 43.6532, longitude: -79.3832 },
-  Edinburgh: { latitude: 55.9533, longitude: -3.1883 }
+  Home: { latitude: 43.4675, longitude: -79.6877 },
+  Campus: { latitude: 43.6532, longitude: -79.3832 },
+  Downtown: { latitude: 43.6510, longitude: -79.3470 }
 };
 
 const RANGE_OPTIONS = [
@@ -38,8 +38,8 @@ const METRICS = {
 };
 
 const state = {
-  primaryCity: "Oakville",
-  compareCity: "Toronto",
+  primaryCity: "Home",
+  compareCity: "Campus",
   range: "today",
   metric: "temperature",
   weatherData: {},
@@ -59,6 +59,13 @@ const forecastTable = document.getElementById("forecastTable");
 const lastUpdated = document.getElementById("lastUpdated");
 const errorBox = document.getElementById("errorBox");
 const loadingBox = document.getElementById("loadingBox");
+
+const rainDecision = document.getElementById("rainDecision");
+const rainReason = document.getElementById("rainReason");
+const layerDecision = document.getElementById("layerDecision");
+const layerReason = document.getElementById("layerReason");
+const harderLocation = document.getElementById("harderLocation");
+const harderReason = document.getElementById("harderReason");
 
 function init() {
   populateCitySelects();
@@ -202,31 +209,85 @@ function updateDashboard() {
 
   if (!primaryPayload || !comparePayload) return;
 
+  renderDecisionCards(primaryPayload, comparePayload);
   renderSummaryCards(primaryPayload);
   renderChart(primaryPayload, comparePayload);
   renderForecastTable(primaryPayload);
   renderChartLabels();
 }
 
+function renderDecisionCards(primaryPayload, comparePayload) {
+  const p = primaryPayload.current;
+  const c = comparePayload.current;
+
+  const rainMax = Math.max(p.precipitation, c.precipitation);
+  const colderTemp = Math.min(p.temperature_2m, c.temperature_2m);
+  const windMax = Math.max(p.wind_speed_10m, c.wind_speed_10m);
+
+  if (rainMax >= 1) {
+    rainDecision.textContent = "Recommended";
+    rainReason.textContent = "At least one location is showing noticeable precipitation.";
+  } else if (rainMax > 0) {
+    rainDecision.textContent = "Maybe";
+    rainReason.textContent = "Light precipitation is present, so a compact umbrella could help.";
+  } else {
+    rainDecision.textContent = "Not needed";
+    rainReason.textContent = "Current precipitation is very low across the selected locations.";
+  }
+
+  if (colderTemp <= 5 || windMax >= 18) {
+    layerDecision.textContent = "Yes";
+    layerReason.textContent = "Cooler temperatures or stronger wind may make the commute less comfortable.";
+  } else if (colderTemp <= 10 || windMax >= 10) {
+    layerDecision.textContent = "Maybe";
+    layerReason.textContent = "Conditions are mild, but an extra layer could still help outdoors.";
+  } else {
+    layerDecision.textContent = "Probably not";
+    layerReason.textContent = "Both selected locations look fairly comfortable right now.";
+  }
+
+  const primaryScore = getDiscomfortScore(p);
+  const compareScore = getDiscomfortScore(c);
+
+  if (Math.abs(primaryScore - compareScore) < 2) {
+    harderLocation.textContent = "Fairly similar";
+    harderReason.textContent = `${state.primaryCity} and ${state.compareCity} feel relatively close right now.`;
+  } else if (primaryScore > compareScore) {
+    harderLocation.textContent = state.primaryCity;
+    harderReason.textContent = `${state.primaryCity} currently looks less comfortable because of combined wind, rain, or temperature conditions.`;
+  } else {
+    harderLocation.textContent = state.compareCity;
+    harderReason.textContent = `${state.compareCity} currently looks less comfortable because of combined wind, rain, or temperature conditions.`;
+  }
+}
+
+function getDiscomfortScore(current) {
+  let score = 0;
+  score += current.precipitation * 3;
+  score += Math.max(0, current.wind_speed_10m - 8) * 0.4;
+  score += Math.max(0, 10 - current.temperature_2m) * 0.5;
+  return score;
+}
+
 function renderSummaryCards(payload) {
   const cards = [
     {
-      label: "Current Temperature",
+      label: "Current temperature",
       value: payload.current.temperature_2m,
       unit: "°C"
     },
     {
-      label: "Current Precipitation",
+      label: "Current precipitation",
       value: payload.current.precipitation,
       unit: "mm"
     },
     {
-      label: "Current Wind Speed",
+      label: "Current wind speed",
       value: payload.current.wind_speed_10m,
       unit: "km/h"
     },
     {
-      label: "Current Cloud Cover",
+      label: "Current cloud cover",
       value: payload.current.cloud_cover,
       unit: "%"
     }
@@ -248,14 +309,14 @@ function renderSummaryCards(payload) {
 
 function renderChartLabels() {
   const metricConfig = METRICS[state.metric];
-  chartTitle.textContent = `${metricConfig.label} forecast for ${state.primaryCity}`;
+  chartTitle.textContent = `${metricConfig.label} for ${state.primaryCity}`;
 
   chartSubtitle.textContent =
     state.range === "today"
-      ? "Hourly forecast for the next 24 hours"
-      : `Aggregated daily forecast for the next ${state.range === "7d" ? 7 : 14} days`;
+      ? "Hourly view for near-term commute and campus decisions"
+      : `Daily view for the next ${state.range === "7d" ? 7 : 14} days`;
 
-  compareLabel.textContent = `${state.primaryCity} vs ${state.compareCity}`;
+  compareLabel.textContent = `${state.primaryCity} compared with ${state.compareCity}`;
 }
 
 function renderChart(primaryPayload, comparePayload) {
@@ -286,7 +347,7 @@ function renderChart(primaryPayload, comparePayload) {
           borderColor: "#0f172a",
           backgroundColor:
             state.metric === "cloud"
-              ? "rgba(124, 58, 237, 0.18)"
+              ? "rgba(124, 58, 237, 0.15)"
               : state.metric === "precipitation"
               ? "rgba(15, 23, 42, 0.9)"
               : "rgba(15, 23, 42, 0.9)",
@@ -298,7 +359,7 @@ function renderChart(primaryPayload, comparePayload) {
           label: state.compareCity,
           data: compareValues,
           borderColor: "#64748b",
-          backgroundColor: "rgba(100, 116, 139, 0.35)",
+          backgroundColor: "rgba(100, 116, 139, 0.3)",
           tension: 0.35,
           fill: false,
           borderWidth: 2.5,
@@ -320,7 +381,8 @@ function renderChart(primaryPayload, comparePayload) {
             boxWidth: 10,
             color: "#334155",
             font: {
-              family: "Inter"
+              family: "Inter",
+              weight: "600"
             }
           }
         },
@@ -347,8 +409,7 @@ function renderChart(primaryPayload, comparePayload) {
         y: {
           beginAtZero: state.metric === "precipitation",
           grid: {
-            color: "#e2e8f0",
-            borderDash: [4, 4]
+            color: "#e2e8f0"
           },
           ticks: {
             color: "#64748b",
@@ -403,9 +464,7 @@ function buildChartSeries(payload, metricKey, rangeKey) {
 
   times.forEach((time, index) => {
     const day = time.slice(0, 10);
-    if (!byDay.has(day)) {
-      byDay.set(day, []);
-    }
+    if (!byDay.has(day)) byDay.set(day, []);
     byDay.get(day).push(values[index]);
   });
 
