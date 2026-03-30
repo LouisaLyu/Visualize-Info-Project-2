@@ -1,7 +1,13 @@
 const CITIES = {
-  Home: { latitude: 43.4675, longitude: -79.6877 },
-  Campus: { latitude: 43.6532, longitude: -79.3832 },
-  Downtown: { latitude: 43.6510, longitude: -79.3470 }
+  Oakville: { latitude: 43.4675, longitude: -79.6877 },        // Oakville
+  Campus: { latitude: 43.6532, longitude: -79.3832 },      // Toronto
+  "Downtown Toronto": { latitude: 43.6532, longitude: -79.3832 },    // Downtown Toronto
+  Burlington: { latitude: 43.3255, longitude: -79.7990 },
+  Hamilton: { latitude: 43.2557, longitude: -79.8711 },
+  Markham: { latitude: 43.8561, longitude: -79.3370 },
+  Mississauga: { latitude: 43.5890, longitude: -79.6441 },
+  "North York": { latitude: 43.7615, longitude: -79.4111 },
+  Scarborough: { latitude: 43.7764, longitude: -79.2318 }
 };
 
 const RANGE_OPTIONS = [
@@ -38,7 +44,7 @@ const METRICS = {
 };
 
 const state = {
-  primaryCity: "Home",
+  primaryCity: "Oakville",
   compareCity: "Campus",
   range: "today",
   metric: "temperature",

@@ -326,7 +326,23 @@ select:focus {
 }
 
 .chart-wrap {
-  height: 430px;
+  flex: 1;
+  min-height: 0;
+  position: relative;
+}
+
+#weatherChart {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+}
+
+.chart-card {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
 }
 
 .side-column {
@@ -339,7 +355,7 @@ select:focus {
   padding-left: 18px;
 }
 
-.compact-list li + li {
+.compact-list li+li {
   margin-top: 10px;
 }
 
@@ -367,6 +383,7 @@ select:focus {
 }
 
 @media (max-width: 1080px) {
+
   .decision-strip,
   .summary-grid {
     grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -374,6 +391,10 @@ select:focus {
 
   .content-grid {
     grid-template-columns: 1fr;
+  }
+
+  .chart-wrap {
+    min-height: 420px;
   }
 }
 
@@ -411,6 +432,9 @@ select:focus {
   }
 
   .chart-wrap {
-    height: 320px;
+    flex: 1;
+    min-height: 0;
   }
+
+
 }
