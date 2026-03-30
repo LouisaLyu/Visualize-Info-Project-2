@@ -43,6 +43,7 @@ const state = {
   range: "today",
   metric: "temperature",
   weatherData: {},
+  forecastDaysLoaded: 0,
   chart: null
 };
 
@@ -116,7 +117,12 @@ function renderRangeButtons() {
     button.addEventListener("click", () => {
       state.range = button.dataset.range;
       renderRangeButtons();
-      updateDashboard();
+      const neededDays = getForecastDays();
+      if (state.forecastDaysLoaded < neededDays) {
+        loadWeather();
+      } else {
+        updateDashboard();
+      }
     });
   });
 }
@@ -189,6 +195,7 @@ async function loadWeather() {
 
     state.weatherData[state.primaryCity] = primaryPayload;
     state.weatherData[state.compareCity] = comparePayload;
+    state.forecastDaysLoaded = forecastDays;
 
     lastUpdated.textContent = new Intl.DateTimeFormat("en-CA", {
       dateStyle: "medium",
