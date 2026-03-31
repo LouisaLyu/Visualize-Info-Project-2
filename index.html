@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Campus Commute Weather Dashboard</title>
+  <title>Comparative Weather Dashboard</title>
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link
@@ -17,11 +17,9 @@
   <main class="page">
     <section class="hero">
       <div class="hero-copy">
-        <div class="eyebrow">Student commute planning</div>
-        <h1>Campus Commute Weather Dashboard</h1>
+        <h1>GTA Weather Dashboard</h1>
         <p class="hero-text">
-          A decision-first weather dashboard for students comparing home, campus,
-          and nearby city conditions. Use it to decide what to bring, how to commute,
+          A decision-first weather dashboard for users comparing cities in the GTA. Use it to decide what to bring, how to commute,
           and whether to stay on campus or move elsewhere.
         </p>
       </div>
@@ -65,6 +63,10 @@
 
       <div class="control-group button-group">
         <button id="refreshBtn" class="refresh-btn">Update forecast</button>
+        <section id="loadingBox" class="loading-box hidden">
+          <span class="loading-spinner" aria-hidden="true"></span>
+          <span>Loading the latest forecast for your commute planning...</span>
+        </section>
       </div>
 
       <div class="full-row">
@@ -98,15 +100,6 @@
       </div>
 
       <aside class="side-column">
-        <div class="card compact-card">
-          <h3>What this dashboard helps with</h3>
-          <ul class="compact-list">
-            <li>Compare home and campus before leaving</li>
-            <li>See whether rain or wind changes your commute comfort</li>
-            <li>Check whether conditions later in the day look better or worse</li>
-          </ul>
-        </div>
-
         <div class="card table-card">
           <div class="table-header">
             <h3>Quick forecast values</h3>
@@ -117,9 +110,7 @@
       </aside>
     </section>
 
-    <section id="loadingBox" class="loading-box hidden">
-      Loading the latest forecast for your commute planning...
-    </section>
+    
   </main>
 
   <script src="main.js"></script>

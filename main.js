@@ -1,6 +1,5 @@
 const CITIES = {
   Oakville: { latitude: 43.4675, longitude: -79.6877 },        // Oakville
-  Campus: { latitude: 43.6532, longitude: -79.3832 },      // Toronto
   "Downtown Toronto": { latitude: 43.6532, longitude: -79.3832 },    // Downtown Toronto
   Burlington: { latitude: 43.3255, longitude: -79.7990 },
   Hamilton: { latitude: 43.2557, longitude: -79.8711 },
