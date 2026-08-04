@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Comparative Weather Dashboard</title>
+  <title>Global Weather Comparison Dashboard</title>
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link
@@ -17,10 +17,10 @@
   <main class="page">
     <section class="hero">
       <div class="hero-copy">
-        <h1>GTA Weather Dashboard</h1>
+        <h1>Global Weather Comparison Dashboard</h1>
         <p class="hero-text">
-          A decision-first weather dashboard for users comparing cities in the GTA. Use it to decide what to bring, how to commute,
-          and whether to stay on campus or move elsewhere.
+          A decision-first weather dashboard for comparing any two cities. Search for locations to decide what to bring,
+          how to commute, and whether conditions are better elsewhere.
         </p>
       </div>
 
@@ -53,12 +53,44 @@
     <section class="controls card">
       <div class="control-group">
         <label for="primaryCity">Starting location</label>
-        <select id="primaryCity"></select>
+        <div class="location-search">
+          <input
+            id="primaryCity"
+            class="location-input"
+            type="text"
+            role="combobox"
+            aria-autocomplete="list"
+            aria-controls="primaryCityResults"
+            aria-describedby="primaryCityStatus"
+            aria-expanded="false"
+            autocomplete="off"
+            placeholder="Search for a city"
+            spellcheck="false"
+          />
+          <div id="primaryCityResults" class="location-results hidden" role="listbox"></div>
+          <p id="primaryCityStatus" class="location-status" aria-live="polite"></p>
+        </div>
       </div>
 
       <div class="control-group">
         <label for="compareCity">Compare with</label>
-        <select id="compareCity"></select>
+        <div class="location-search">
+          <input
+            id="compareCity"
+            class="location-input"
+            type="text"
+            role="combobox"
+            aria-autocomplete="list"
+            aria-controls="compareCityResults"
+            aria-describedby="compareCityStatus"
+            aria-expanded="false"
+            autocomplete="off"
+            placeholder="Search for a city"
+            spellcheck="false"
+          />
+          <div id="compareCityResults" class="location-results hidden" role="listbox"></div>
+          <p id="compareCityStatus" class="location-status" aria-live="polite"></p>
+        </div>
       </div>
 
       <div class="control-group button-group">
