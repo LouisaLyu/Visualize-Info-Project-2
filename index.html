@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Global Weather Comparison Dashboard</title>
+  <title>Daily Weather Comparison</title>
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link
@@ -14,45 +14,21 @@
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 </head>
 <body>
-  <main class="page">
-    <section class="hero">
-      <div class="hero-copy">
-        <h1>Global Weather Comparison Dashboard</h1>
-        <p class="hero-text">
-          A decision-first weather dashboard for comparing any two cities. Search for locations to decide what to bring,
-          how to commute, and whether conditions are better elsewhere.
-        </p>
+  <main class="app-shell">
+    <header class="app-header">
+      <div class="brand">
+        <span class="brand-mark" aria-hidden="true">◐</span>
+        <span>Daily Weather</span>
       </div>
-
-      <div class="updated-card">
+      <div class="updated-status" aria-live="polite">
         <span class="updated-label">Last updated</span>
-        <span id="lastUpdated">Waiting for data...</span>
+        <span id="lastUpdated">Waiting for forecast…</span>
       </div>
-    </section>
+    </header>
 
-    <section class="decision-strip">
-      <article class="decision-card">
-        <strong class="decision-label">Rain gear &#9730;</strong>
-        <strong id="rainDecision">Loading...</strong>
-        <p id="rainReason">Checking precipitation differences.</p>
-      </article>
-
-      <article class="decision-card">
-        <strong class="decision-label">Extra layer &#129509;</strong>
-        <strong id="layerDecision">Loading...</strong>
-        <p id="layerReason">Checking temperature and wind.</p>
-      </article>
-
-      <article class="decision-card">
-        <strong class="decision-label">Harder location right now</strong>
-        <strong id="harderLocation">Loading...</strong>
-        <p id="harderReason">Comparing conditions across locations.</p>
-      </article>
-    </section>
-
-    <section class="controls card">
+    <section class="location-bar card" aria-label="Choose locations">
       <div class="control-group">
-        <label for="primaryCity">Starting location</label>
+        <label for="primaryCity">Your location</label>
         <div class="location-search">
           <input
             id="primaryCity"
@@ -71,6 +47,8 @@
           <p id="primaryCityStatus" class="location-status" aria-live="polite"></p>
         </div>
       </div>
+
+      <button id="swapLocationsBtn" class="swap-btn" type="button" aria-label="Swap selected locations" title="Swap locations">⇄</button>
 
       <div class="control-group">
         <label for="compareCity">Compare with</label>
@@ -93,56 +71,171 @@
         </div>
       </div>
 
-      <div class="control-group button-group">
-        <button id="refreshBtn" class="refresh-btn">Update forecast</button>
-        <section id="loadingBox" class="loading-box hidden">
+      <div class="location-actions">
+        <button id="refreshBtn" class="refresh-btn" type="button">Refresh</button>
+        <div id="loadingBox" class="loading-box hidden" role="status">
           <span class="loading-spinner" aria-hidden="true"></span>
-          <span>Loading the latest forecast for your commute planning...</span>
-        </section>
-      </div>
-
-      <div class="full-row">
-        <div class="section-label">Time range</div>
-        <div id="rangeButtons" class="pill-row"></div>
-      </div>
-
-      <div class="full-row">
-        <div class="section-label">Metric</div>
-        <div id="metricButtons" class="pill-row"></div>
+          <span>Updating forecast</span>
+        </div>
       </div>
     </section>
 
-    <section id="errorBox" class="error-box hidden"></section>
+    <section id="errorBox" class="error-box hidden" role="alert"></section>
 
-    <section id="summaryCards" class="summary-grid"></section>
-
-    <section class="content-grid">
-      <div class="card chart-card">
-        <div class="chart-header">
+    <section class="overview-grid data-region">
+      <article class="current-card card">
+        <div class="section-heading">
           <div>
-            <h2 id="chartTitle">Forecast</h2>
-            <p id="chartSubtitle">Loading...</p>
+            <p class="eyebrow">Current conditions</p>
+            <h1><span id="primaryLocationName">Oakville</span> right now</h1>
           </div>
-          <div id="compareLabel" class="compare-label"></div>
+          <span id="currentTime" class="time-label">—</span>
         </div>
 
-        <div class="chart-wrap">
-          <canvas id="weatherChart"></canvas>
+        <div class="current-condition">
+          <span id="currentWeatherIcon" class="current-weather-icon" aria-hidden="true">☀</span>
+          <div>
+            <div class="temperature-row">
+              <strong id="currentTemperature">—</strong><span>°C</span>
+            </div>
+            <p id="currentCondition" class="condition-name">Loading conditions</p>
+            <p id="feelsLike" class="feels-like">Feels like —</p>
+          </div>
+        </div>
+
+        <p id="weatherTakeaway" class="weather-takeaway">Checking the latest forecast for your day.</p>
+
+        <div class="current-metrics" aria-label="Today at a glance">
+          <div>
+            <span>High / low</span>
+            <strong id="todayHighLow">—</strong>
+          </div>
+          <div>
+            <span>Rain chance</span>
+            <strong id="rainChance">—</strong>
+          </div>
+          <div>
+            <span>Wind</span>
+            <strong id="currentWind">—</strong>
+          </div>
+        </div>
+      </article>
+
+      <article class="daily-plan-card card">
+        <div class="section-heading">
+          <div>
+            <p class="eyebrow">Today’s plan</p>
+            <h2>Leave prepared</h2>
+          </div>
+          <span class="plan-badge">Commute guide</span>
+        </div>
+
+        <div class="plan-list">
+          <article class="plan-item">
+            <span class="plan-icon" aria-hidden="true">☂</span>
+            <div>
+              <span class="plan-label">Rain gear</span>
+              <strong id="rainDecision">Loading…</strong>
+              <p id="rainReason">Checking precipitation differences.</p>
+            </div>
+          </article>
+          <article class="plan-item">
+            <span class="plan-icon" aria-hidden="true">◒</span>
+            <div>
+              <span class="plan-label">Extra layer</span>
+              <strong id="layerDecision">Loading…</strong>
+              <p id="layerReason">Checking temperature and wind.</p>
+            </div>
+          </article>
+          <article class="plan-item">
+            <span class="plan-icon" aria-hidden="true">↔</span>
+            <div>
+              <span class="plan-label">Between locations</span>
+              <strong id="harderLocation">Loading…</strong>
+              <p id="harderReason">Comparing conditions across locations.</p>
+            </div>
+          </article>
+        </div>
+      </article>
+    </section>
+
+    <section class="details-section" aria-labelledby="detailsHeading">
+      <div class="details-header">
+        <div>
+          <p class="eyebrow">Detailed comparison</p>
+          <h2 id="detailsHeading">Explore the forecast</h2>
+          <p id="comparisonInsight" class="comparison-insight">Loading comparison insight…</p>
+        </div>
+        <div class="detail-controls">
+          <div>
+            <span class="control-label">Time range</span>
+            <div id="rangeButtons" class="pill-row"></div>
+          </div>
+          <div>
+            <span class="control-label">Metric</span>
+            <div id="metricButtons" class="pill-row"></div>
+          </div>
         </div>
       </div>
 
-      <aside class="side-column">
-        <div class="card table-card">
-          <div class="table-header">
-            <h3>Quick forecast values</h3>
-            <p>Fast scan for the current location and metric.</p>
+      <div class="content-grid">
+        <div class="card chart-card">
+          <div class="chart-header">
+            <div>
+              <h3 id="chartTitle">Forecast</h3>
+              <p id="chartSubtitle">Loading…</p>
+            </div>
+            <div id="compareLabel" class="compare-label"></div>
           </div>
-          <div id="forecastTable" class="forecast-table"></div>
+
+          <div
+            id="chartWrap"
+            class="chart-wrap"
+            tabindex="0"
+            role="group"
+            aria-label="Hourly forecast chart"
+            aria-describedby="chartPanHint"
+          >
+            <canvas id="weatherChart"></canvas>
+          </div>
+          <p id="chartPanHint" class="chart-pan-hint"></p>
         </div>
-      </aside>
+
+        <aside class="side-column">
+          <div class="card table-card">
+            <div class="table-header">
+              <h3>Quick forecast values</h3>
+              <p>Fast scan for the selected time range and metric.</p>
+            </div>
+            <div id="forecastTable" class="forecast-table"></div>
+          </div>
+        </aside>
+      </div>
     </section>
 
-    
+    <section class="forecast-section card data-region" aria-labelledby="hourlyHeading">
+      <div class="section-heading forecast-heading">
+        <div>
+          <p class="eyebrow">Next 24 hours</p>
+          <h2 id="hourlyHeading">Your day, hour by hour</h2>
+        </div>
+        <p id="hourlyRange" class="section-support">Starting from now</p>
+      </div>
+      <div id="hourlyForecast" class="hourly-forecast" aria-live="polite"></div>
+    </section>
+
+    <section class="forecast-section card data-region" aria-labelledby="dailyHeading">
+      <div class="section-heading forecast-heading">
+        <div>
+          <p class="eyebrow">Next 7 days</p>
+          <h2 id="dailyHeading">Week ahead</h2>
+        </div>
+        <p class="section-support">High, low &amp; rain chance</p>
+      </div>
+      <div id="dailyForecast" class="daily-forecast" aria-live="polite"></div>
+    </section>
+
+
   </main>
 
   <script src="main.js"></script>

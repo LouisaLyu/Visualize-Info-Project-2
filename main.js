@@ -20,9 +20,11 @@ const DEFAULT_LOCATIONS = {
 const GEOCODING_ENDPOINT = "https://geocoding-api.open-meteo.com/v1/search";
 const LOCATION_SEARCH_DELAY = 300;
 const LOCATION_RESULT_LIMIT = 8;
+const HOURLY_WINDOW_SIZE = 24;
+const HOUR_DRAG_DISTANCE = 28;
 
 const RANGE_OPTIONS = [
-  { key: "today", label: "Today", forecastDays: 2 },
+  { key: "today", label: "Today", forecastDays: 7 },
   { key: "7d", label: "Next 7 Days", forecastDays: 7 },
   { key: "14d", label: "Next 14 Days", forecastDays: 14 }
 ];
@@ -54,6 +56,8 @@ const METRICS = {
   }
 };
 
+METRICS.temperature.unit = `${String.fromCharCode(176)}C`;
+
 const state = {
   primaryLocation: DEFAULT_LOCATIONS.primary,
   compareLocation: DEFAULT_LOCATIONS.compare,
@@ -61,7 +65,8 @@ const state = {
   metric: "temperature",
   weatherData: {},
   forecastDaysLoaded: 0,
-  chart: null
+  chart: null,
+  hourlyOffset: 0
 };
 
 let weatherRequestId = 0;
@@ -71,7 +76,7 @@ const compareCityInput = document.getElementById("compareCity");
 const rangeButtons = document.getElementById("rangeButtons");
 const metricButtons = document.getElementById("metricButtons");
 const refreshBtn = document.getElementById("refreshBtn");
-const summaryCards = document.getElementById("summaryCards");
+const swapLocationsBtn = document.getElementById("swapLocationsBtn");
 const chartTitle = document.getElementById("chartTitle");
 const chartSubtitle = document.getElementById("chartSubtitle");
 const compareLabel = document.getElementById("compareLabel");
@@ -79,6 +84,28 @@ const forecastTable = document.getElementById("forecastTable");
 const lastUpdated = document.getElementById("lastUpdated");
 const errorBox = document.getElementById("errorBox");
 const loadingBox = document.getElementById("loadingBox");
+const chartWrap = document.getElementById("chartWrap");
+const chartPanHint = document.getElementById("chartPanHint");
+const primaryLocationName = document.getElementById("primaryLocationName");
+const currentTime = document.getElementById("currentTime");
+const currentWeatherIcon = document.getElementById("currentWeatherIcon");
+const currentTemperature = document.getElementById("currentTemperature");
+const currentCondition = document.getElementById("currentCondition");
+const feelsLike = document.getElementById("feelsLike");
+const weatherTakeaway = document.getElementById("weatherTakeaway");
+const todayHighLow = document.getElementById("todayHighLow");
+const rainChance = document.getElementById("rainChance");
+const currentWind = document.getElementById("currentWind");
+const hourlyRange = document.getElementById("hourlyRange");
+const hourlyForecast = document.getElementById("hourlyForecast");
+const dailyForecast = document.getElementById("dailyForecast");
+const comparisonInsight = document.getElementById("comparisonInsight");
+
+const chartDrag = {
+  pointerId: null,
+  startX: 0,
+  startOffset: 0
+};
 
 const locationSearches = {
   primary: createLocationSearch(
@@ -107,10 +134,100 @@ function init() {
   setupLocationSearch("compare");
   renderRangeButtons();
   renderMetricButtons();
+  setupChartPanning();
 
   refreshBtn.addEventListener("click", loadWeather);
+  swapLocationsBtn.addEventListener("click", swapLocations);
 
   loadWeather();
+}
+
+function swapLocations() {
+  const primaryLocation = state.primaryLocation;
+  const compareLocation = state.compareLocation;
+
+  state.primaryLocation = compareLocation;
+  state.compareLocation = primaryLocation;
+  locationSearches.primary.selected = compareLocation;
+  locationSearches.compare.selected = primaryLocation;
+  primaryCityInput.value = compareLocation.label;
+  compareCityInput.value = primaryLocation.label;
+  setLocationStatus(locationSearches.primary, `Selected ${compareLocation.label}.`);
+  setLocationStatus(locationSearches.compare, `Selected ${primaryLocation.label}.`);
+  state.forecastDaysLoaded = 0;
+  state.hourlyOffset = 0;
+
+  loadWeather();
+}
+
+function setupChartPanning() {
+  chartWrap.addEventListener("pointerdown", event => {
+    if (state.range !== "today" || (event.pointerType === "mouse" && event.button !== 0)) return;
+
+    const primaryPayload = state.weatherData[getLocationKey(state.primaryLocation)];
+    if (!primaryPayload || !getHourlyOffsetBounds(primaryPayload)) return;
+
+    chartDrag.pointerId = event.pointerId;
+    chartDrag.startX = event.clientX;
+    chartDrag.startOffset = state.hourlyOffset;
+    chartWrap.setPointerCapture(event.pointerId);
+    chartWrap.classList.add("is-dragging");
+  });
+
+  chartWrap.addEventListener("pointermove", event => {
+    if (event.pointerId !== chartDrag.pointerId) return;
+
+    const hourDelta = Math.trunc((chartDrag.startX - event.clientX) / HOUR_DRAG_DISTANCE);
+    if (!hourDelta) return;
+
+    event.preventDefault();
+    setHourlyOffset(chartDrag.startOffset + hourDelta);
+  });
+
+  ["pointerup", "pointercancel"].forEach(eventName => {
+    chartWrap.addEventListener(eventName, event => {
+      if (event.pointerId !== chartDrag.pointerId) return;
+
+      if (chartWrap.hasPointerCapture(event.pointerId)) {
+        chartWrap.releasePointerCapture(event.pointerId);
+      }
+
+      chartDrag.pointerId = null;
+      chartWrap.classList.remove("is-dragging");
+    });
+  });
+
+  chartWrap.addEventListener("keydown", event => {
+    if (state.range !== "today") return;
+
+    const hourDelta =
+      event.key === "ArrowLeft"
+        ? -1
+        : event.key === "ArrowRight"
+        ? 1
+        : event.key === "PageUp"
+        ? -6
+        : event.key === "PageDown"
+        ? 6
+        : 0;
+
+    if (!hourDelta) return;
+
+    event.preventDefault();
+    setHourlyOffset(state.hourlyOffset + hourDelta);
+  });
+}
+
+function setHourlyOffset(nextOffset) {
+  const primaryPayload = state.weatherData[getLocationKey(state.primaryLocation)];
+  const bounds = getHourlyOffsetBounds(primaryPayload);
+  if (!bounds) return;
+
+  const clampedOffset = Math.min(bounds.max, Math.max(bounds.min, nextOffset));
+  if (clampedOffset === state.hourlyOffset) return;
+
+  state.hourlyOffset = clampedOffset;
+  updateDashboard();
 }
 
 function createLocation({ id, name, admin1 = "", country = "", latitude, longitude }) {
@@ -362,6 +479,7 @@ function selectLocation(type, location) {
   }
 
   state.forecastDaysLoaded = 0;
+  state.hourlyOffset = 0;
   loadWeather();
 }
 
@@ -374,6 +492,7 @@ function renderRangeButtons() {
   rangeButtons.querySelectorAll("button").forEach(button => {
     button.addEventListener("click", () => {
       state.range = button.dataset.range;
+      state.hourlyOffset = 0;
       renderRangeButtons();
       const neededDays = getForecastDays();
       if (state.forecastDaysLoaded < neededDays) {
@@ -410,8 +529,9 @@ async function fetchWeather(location, forecastDays) {
   const params = new URLSearchParams({
     latitude: String(location.latitude),
     longitude: String(location.longitude),
-    hourly: "temperature_2m,precipitation,wind_speed_10m,cloud_cover",
-    current: "temperature_2m,precipitation,wind_speed_10m,cloud_cover",
+    hourly: "temperature_2m,apparent_temperature,precipitation,precipitation_probability,weather_code,wind_speed_10m,cloud_cover",
+    current: "temperature_2m,apparent_temperature,precipitation,weather_code,wind_speed_10m,cloud_cover",
+    daily: "weather_code,temperature_2m_max,temperature_2m_min,precipitation_probability_max,precipitation_sum",
     timezone: "auto",
     forecast_days: String(forecastDays)
   });
@@ -469,11 +589,14 @@ function updateDashboard() {
 
   if (!primaryPayload || !comparePayload) return;
 
+  renderCurrentConditions(primaryPayload);
   renderDecisionCards(primaryPayload, comparePayload);
-  renderSummaryCards(primaryPayload);
+  renderHourlyForecast(primaryPayload);
+  renderDailyForecast(primaryPayload);
+  renderComparisonInsight(primaryPayload, comparePayload);
   renderChart(primaryPayload, comparePayload);
   renderForecastTable(primaryPayload);
-  renderChartLabels();
+  renderChartLabels(primaryPayload);
 }
 
 function renderDecisionCards(primaryPayload, comparePayload) {
@@ -481,15 +604,19 @@ function renderDecisionCards(primaryPayload, comparePayload) {
   const c = comparePayload.current;
 
   const rainMax = Math.max(p.precipitation, c.precipitation);
+  const rainChanceMax = Math.max(
+    getDailyValue(primaryPayload.daily?.precipitation_probability_max, 0) || 0,
+    getDailyValue(comparePayload.daily?.precipitation_probability_max, 0) || 0
+  );
   const colderTemp = Math.min(p.temperature_2m, c.temperature_2m);
   const windMax = Math.max(p.wind_speed_10m, c.wind_speed_10m);
 
-  if (rainMax >= 1) {
-    rainDecision.textContent = "Recommended";
-    rainReason.textContent = "At least one location is showing noticeable precipitation.";
-  } else if (rainMax > 0) {
-    rainDecision.textContent = "Maybe";
-    rainReason.textContent = "Light precipitation is present, so a compact umbrella could help.";
+  if (rainMax >= 1 || rainChanceMax >= 60) {
+    rainDecision.textContent = "Bring it";
+    rainReason.textContent = `Rain is likely today, with up to a ${formatNumber(rainChanceMax)}% chance.`;
+  } else if (rainMax > 0 || rainChanceMax >= 25) {
+    rainDecision.textContent = "A good idea";
+    rainReason.textContent = `There is a ${formatNumber(rainChanceMax)}% chance of rain across the selected locations.`;
   } else {
     rainDecision.textContent = "Not needed";
     rainReason.textContent = "Current precipitation is very low across the selected locations.";
@@ -567,14 +694,164 @@ function renderSummaryCards(payload) {
     .join("");
 }
 
-function renderChartLabels() {
-  const metricConfig = METRICS[state.metric];
-  chartTitle.textContent = `${metricConfig.label} for ${state.primaryLocation.label}`;
+function renderCurrentConditions(payload) {
+  const current = payload.current;
+  const today = payload.daily || {};
+  const weather = getWeatherDetails(current.weather_code);
+  const rainProbability = getDailyValue(today.precipitation_probability_max, 0);
+  const high = getDailyValue(today.temperature_2m_max, 0);
+  const low = getDailyValue(today.temperature_2m_min, 0);
 
-  chartSubtitle.textContent =
-    state.range === "today"
-      ? "Hourly view for near-term commute and campus decisions"
-      : `Daily view for the next ${state.range === "7d" ? 7 : 14} days`;
+  primaryLocationName.textContent = state.primaryLocation.name;
+  currentTime.textContent = formatForecastDateTime(current.time, {
+    weekday: "short",
+    hour: "numeric",
+    minute: "2-digit"
+  });
+  currentWeatherIcon.textContent = weather.icon;
+  currentCondition.textContent = weather.label;
+  currentTemperature.textContent = formatNumber(current.temperature_2m);
+  feelsLike.textContent = `Feels like ${formatTemperature(current.apparent_temperature)}`;
+  todayHighLow.textContent = `${formatTemperature(high)} / ${formatTemperature(low)}`;
+  rainChance.textContent = `${formatNumber(rainProbability)}%`;
+  currentWind.textContent = `${formatNumber(current.wind_speed_10m)} km/h`;
+  weatherTakeaway.textContent = getWeatherTakeaway(current, rainProbability, weather.label);
+}
+
+function renderHourlyForecast(payload) {
+  const times = payload.hourly?.time || [];
+  const temperatures = payload.hourly?.temperature_2m || [];
+  const probabilities = payload.hourly?.precipitation_probability || [];
+  const weatherCodes = payload.hourly?.weather_code || [];
+  const startIndex = getHourlyWindowStart(payload, 0);
+  const currentHourIndex = getClosestCurrentHourIndex(payload);
+  const visibleTimes = times.slice(startIndex, startIndex + HOURLY_WINDOW_SIZE);
+
+  hourlyRange.textContent = getHourlyWindowLabel(
+    visibleTimes.map(time => ({ time }))
+  );
+  hourlyForecast.innerHTML = visibleTimes
+    .map((time, offset) => {
+      const index = startIndex + offset;
+      const isNow = index === currentHourIndex;
+      const rainProbability = probabilities[index] ?? 0;
+
+      return `
+        <article class="hourly-item${isNow ? " is-now" : ""}">
+          <span class="hourly-time">${isNow ? "Now" : getHourLabel(time)}</span>
+          <span class="hourly-weather-icon" aria-hidden="true">${getWeatherDetails(weatherCodes[index]).icon}</span>
+          <strong class="hourly-temperature">${formatTemperature(temperatures[index])}</strong>
+          <span class="hourly-rain">${rainProbability > 0 ? `${formatNumber(rainProbability)}% rain` : "Dry"}</span>
+        </article>
+      `;
+    })
+    .join("");
+}
+
+function renderDailyForecast(payload) {
+  const daily = payload.daily || {};
+  const dates = daily.time || [];
+
+  dailyForecast.innerHTML = dates
+    .slice(0, 7)
+    .map((date, index) => {
+      const weather = getWeatherDetails(daily.weather_code?.[index]);
+      const high = daily.temperature_2m_max?.[index];
+      const low = daily.temperature_2m_min?.[index];
+      const rainProbability = daily.precipitation_probability_max?.[index] ?? 0;
+
+      return `
+        <article class="daily-item${index === 0 ? " is-today" : ""}">
+          <span class="daily-day">${index === 0 ? "Today" : getShortDayLabel(date)}</span>
+          <span class="daily-weather-icon" aria-hidden="true">${weather.icon}</span>
+          <strong class="daily-temperature">${formatTemperature(high)} <span>${formatTemperature(low)}</span></strong>
+          <span class="daily-rain">${rainProbability > 0 ? `${formatNumber(rainProbability)}%` : "Dry"}</span>
+        </article>
+      `;
+    })
+    .join("");
+}
+
+function renderComparisonInsight(primaryPayload, comparePayload) {
+  const primaryTemperature = primaryPayload.current.temperature_2m;
+  const compareTemperature = comparePayload.current.temperature_2m;
+  const difference = Math.abs(primaryTemperature - compareTemperature);
+
+  if (difference < 0.5) {
+    comparisonInsight.textContent = `${state.primaryLocation.name} and ${state.compareLocation.name} are nearly the same temperature right now.`;
+    return;
+  }
+
+  const warmerLocation =
+    primaryTemperature > compareTemperature ? state.primaryLocation.name : state.compareLocation.name;
+  comparisonInsight.textContent = `${warmerLocation} is ${formatTemperature(difference)} warmer right now.`;
+}
+
+function getDailyValue(values, index) {
+  return values?.[index] ?? null;
+}
+
+function getWeatherTakeaway(current, rainProbability, weatherLabel) {
+  if (rainProbability >= 60 || current.precipitation >= 1) {
+    return `Rain is likely today. ${weatherLabel} conditions make an umbrella a sensible choice.`;
+  }
+
+  if (current.wind_speed_10m >= 25) {
+    return `It is breezy right now, so it may feel cooler than the temperature suggests.`;
+  }
+
+  if (current.temperature_2m <= 5) {
+    return `Cool conditions are expected today. A warmer outer layer will help.`;
+  }
+
+  return `${weatherLabel} conditions look comfortable for getting around today.`;
+}
+
+function getWeatherDetails(code) {
+  if (code === 0) return { icon: String.fromCodePoint(0x2600, 0xfe0f), label: "Clear sky" };
+  if (code === 1) return { icon: String.fromCodePoint(0x1f324, 0xfe0f), label: "Mostly clear" };
+  if (code === 2) return { icon: String.fromCodePoint(0x26c5), label: "Partly cloudy" };
+  if (code === 3) return { icon: String.fromCodePoint(0x2601, 0xfe0f), label: "Overcast" };
+  if ([45, 48].includes(code)) return { icon: String.fromCodePoint(0x1f32b, 0xfe0f), label: "Foggy" };
+  if ([51, 53, 55, 56, 57].includes(code)) return { icon: String.fromCodePoint(0x1f326, 0xfe0f), label: "Drizzle" };
+  if ([61, 63, 65, 66, 67, 80, 81, 82].includes(code)) return { icon: String.fromCodePoint(0x1f327, 0xfe0f), label: "Rain showers" };
+  if ([71, 73, 75, 77, 85, 86].includes(code)) return { icon: String.fromCodePoint(0x1f328, 0xfe0f), label: "Snow showers" };
+  if ([95, 96, 99].includes(code)) return { icon: String.fromCodePoint(0x26c8, 0xfe0f), label: "Thunderstorms" };
+
+  return { icon: String.fromCodePoint(0x1f324, 0xfe0f), label: "Changing conditions" };
+  if (code === 0) return { icon: "☀️", label: "Clear sky" };
+  if (code === 1) return { icon: "🌤️", label: "Mostly clear" };
+  if (code === 2) return { icon: "⛅", label: "Partly cloudy" };
+  if (code === 3) return { icon: "☁️", label: "Overcast" };
+  if ([45, 48].includes(code)) return { icon: "🌫️", label: "Foggy" };
+  if ([51, 53, 55, 56, 57].includes(code)) return { icon: "🌦️", label: "Drizzle" };
+  if ([61, 63, 65, 66, 67, 80, 81, 82].includes(code)) return { icon: "🌧️", label: "Rain showers" };
+  if ([71, 73, 75, 77, 85, 86].includes(code)) return { icon: "🌨️", label: "Snow showers" };
+  if ([95, 96, 99].includes(code)) return { icon: "⛈️", label: "Thunderstorms" };
+
+  return { icon: "🌤️", label: "Changing conditions" };
+}
+
+function renderChartLabels(primaryPayload) {
+  const metricConfig = METRICS[state.metric];
+  chartTitle.textContent = `${metricConfig.label} comparison`;
+
+  if (state.range === "today") {
+    const series = buildChartSeries(primaryPayload, state.metric, state.range);
+    const windowLabel = getHourlyWindowLabel(series);
+
+    chartSubtitle.textContent = windowLabel
+      ? `Hourly view from ${windowLabel}`
+      : "Hourly view for near-term commute and campus decisions";
+    chartPanHint.textContent = "Drag left for later hours or right for earlier hours. You can also use the left and right arrow keys.";
+    chartWrap.setAttribute("aria-label", "Hourly forecast chart. Drag left to view later hours or right to view earlier hours.");
+    chartWrap.classList.add("is-pannable");
+  } else {
+    chartSubtitle.textContent = `Daily view for the next ${state.range === "7d" ? 7 : 14} days`;
+    chartPanHint.textContent = "Switch to Today to pan through the hourly forecast.";
+    chartWrap.setAttribute("aria-label", "Daily forecast chart");
+    chartWrap.classList.remove("is-pannable");
+  }
 
   compareLabel.textContent = `${state.primaryLocation.label} compared with ${state.compareLocation.label}`;
 }
@@ -604,13 +881,13 @@ function renderChart(primaryPayload, comparePayload) {
         {
           label: state.primaryLocation.label,
           data: primaryValues,
-          borderColor: "#0f172a",
+          borderColor: "#2563eb",
           backgroundColor:
             state.metric === "cloud"
-              ? "rgba(124, 58, 237, 0.15)"
+              ? "rgba(37, 99, 235, 0.15)"
               : state.metric === "precipitation"
-              ? "rgba(15, 23, 42, 0.9)"
-              : "rgba(15, 23, 42, 0.9)",
+              ? "rgba(37, 99, 235, 0.78)"
+              : "rgba(37, 99, 235, 0.78)",
           tension: 0.35,
           fill: state.metric === "cloud",
           borderWidth: 3
@@ -618,8 +895,8 @@ function renderChart(primaryPayload, comparePayload) {
         {
           label: state.compareLocation.label,
           data: compareValues,
-          borderColor: "#64748b",
-          backgroundColor: "rgba(100, 116, 139, 0.3)",
+          borderColor: "#7c3aed",
+          backgroundColor: "rgba(124, 58, 237, 0.28)",
           tension: 0.35,
           fill: false,
           borderWidth: 2.5,
@@ -705,6 +982,60 @@ function renderForecastTable(payload) {
     .join("");
 }
 
+function getHourlyOffsetBounds(payload) {
+  const times = payload?.hourly?.time || [];
+  if (!times.length) return null;
+
+  const currentHourIndex = getClosestCurrentHourIndex(payload);
+  const lastWindowStart = Math.max(0, times.length - HOURLY_WINDOW_SIZE);
+
+  return {
+    min: -currentHourIndex,
+    max: lastWindowStart - currentHourIndex
+  };
+}
+
+function getHourlyWindowStart(payload, offset = state.hourlyOffset) {
+  const bounds = getHourlyOffsetBounds(payload);
+  if (!bounds) return 0;
+
+  const currentHourIndex = getClosestCurrentHourIndex(payload);
+  const clampedOffset = Math.min(bounds.max, Math.max(bounds.min, offset));
+
+  return currentHourIndex + clampedOffset;
+}
+
+function getClosestCurrentHourIndex(payload) {
+  const times = payload?.hourly?.time || [];
+  const currentTime = payload?.current?.time;
+  const currentTimestamp = Date.parse(currentTime);
+
+  if (!times.length || Number.isNaN(currentTimestamp)) return 0;
+
+  return times.reduce((closestIndex, time, index) => {
+    const closestDifference = Math.abs(Date.parse(times[closestIndex]) - currentTimestamp);
+    const nextDifference = Math.abs(Date.parse(time) - currentTimestamp);
+
+    return nextDifference < closestDifference ? index : closestIndex;
+  }, 0);
+}
+
+function getHourlyWindowLabel(series) {
+  if (!series.length) return "";
+
+  const start = formatForecastDateTime(series[0].time, {
+    weekday: "short",
+    hour: "numeric"
+  });
+  const end = formatForecastDateTime(series[series.length - 1].time, {
+    weekday: "short",
+    hour: "numeric"
+  });
+
+  return `${start} to ${end}`;
+  return `${start}–${end}`;
+}
+
 function buildChartSeries(payload, metricKey, rangeKey) {
   if (!payload || !payload.hourly) return [];
 
@@ -713,9 +1044,12 @@ function buildChartSeries(payload, metricKey, rangeKey) {
   const values = payload.hourly[metric.hourlyKey] || [];
 
   if (rangeKey === "today") {
-    return times.slice(0, 24).map((time, index) => ({
+    const startIndex = getHourlyWindowStart(payload);
+
+    return times.slice(startIndex, startIndex + HOURLY_WINDOW_SIZE).map((time, offset) => ({
       label: getHourLabel(time),
-      value: values[index]
+      time,
+      value: values[startIndex + offset]
     }));
   }
 
@@ -740,7 +1074,21 @@ function buildChartSeries(payload, metricKey, rangeKey) {
 }
 
 function getHourLabel(timestamp) {
-  return timestamp.slice(11, 16);
+  const hour = Number(timestamp.slice(11, 13));
+
+  return formatForecastDateTime(
+    timestamp,
+    hour === 0 ? { weekday: "short", hour: "numeric" } : { hour: "numeric" }
+  );
+}
+
+function formatForecastDateTime(timestamp, options) {
+  const [datePart, timePart] = timestamp.split("T");
+  const [year, month, day] = datePart.split("-").map(Number);
+  const [hour, minute] = timePart.split(":").map(Number);
+  const date = new Date(year, month - 1, day, hour, minute);
+
+  return new Intl.DateTimeFormat("en-CA", options).format(date);
 }
 
 function getDayLabel(dateString) {
@@ -754,14 +1102,26 @@ function getDayLabel(dateString) {
   }).format(date);
 }
 
+function getShortDayLabel(dateString) {
+  const [year, month, day] = dateString.split("-").map(Number);
+  const date = new Date(year, month - 1, day);
+
+  return new Intl.DateTimeFormat("en-CA", { weekday: "short" }).format(date);
+}
+
 function average(values) {
   if (!values.length) return 0;
   return values.reduce((sum, value) => sum + value, 0) / values.length;
 }
 
 function formatNumber(value) {
+  if (value == null || Number.isNaN(value)) return String.fromCharCode(8212);
   if (value == null || Number.isNaN(value)) return "—";
   return value >= 10 ? value.toFixed(0) : value.toFixed(1);
+}
+
+function formatTemperature(value) {
+  return `${formatNumber(value)}${String.fromCharCode(176)}`;
 }
 
 function showError(message) {
@@ -777,6 +1137,7 @@ function showError(message) {
 
 function showLoading(isLoading) {
   loadingBox.classList.toggle("hidden", !isLoading);
+  document.body.classList.toggle("is-loading", isLoading);
 }
 
 init();
